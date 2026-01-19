@@ -3,7 +3,7 @@ title: "WSL2のGemini CLIにクリップボードの画像を渡す方法"
 emoji: "👏"
 type: "idea" # tech: 技術記事 / idea: アイデア
 topics: ["wsl","gemini","cli"]
-published: false
+published: true 
 ---
 ## はじめに
 最近，ターミナルで使えるAI，Gemini CLIにハマっているのですが，使っていて少し不便に感じることがありました．それは，クリップボードの画像を渡す機能がついていないことです．
