@@ -33,7 +33,7 @@ published: true
     → 画像がプロンプトに添付され，AIと会話できます．
 
 実際のターミナル画面はこんな感じです．
-![](/images/wsl-gemini-cli-clipboard/how-to-use.png)
+![](/images/wsl-gemini-cli-clipboard/usage.png)
 :::message
 今回は，`/c`をした時点で **ReadFile** しており，画像を受け取っているので，実は`/v`の必要はありません．しかしこれはGeminiが自律的に｢気を利かせて｣やったことで，毎回そうなるとは限りません．
 :::
