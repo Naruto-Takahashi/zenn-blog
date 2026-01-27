@@ -1,0 +1,50 @@
+{
+	"Zenn Message Info": {
+		"prefix": "msg",
+		"body": [
+			":::message",
+			"${1:メッセージ内容}",
+			":::"
+		],
+		"description": "Zenn Message Box (Info)"
+	},
+	"Zenn Message Alert": {
+		"prefix": "msga",
+		"body": [
+			":::message alert",
+			"${1:警告メッセージ内容}",
+			":::"
+		],
+		"description": "Zenn Message Box (Alert)"
+	},
+	"Zenn Details": {
+		"prefix": "details",
+		"body": [
+			":::details ${1:タイトル}",
+			"${2:詳細内容}",
+			":::"
+		],
+		"description": "Zenn Details (Accordion)"
+	},
+    "Zenn Link Card": {
+        "prefix": "link",
+        "body": [
+            "@[card](${1:URL})"
+        ],
+        "description": "Zenn Link Card"
+    },
+    "Zenn Tweet": {
+        "prefix": "tweet",
+        "body": [
+            "@[tweet](${1:Tweet URL})"
+        ],
+        "description": "Zenn Tweet Embed"
+    },
+    "Zenn Youtube": {
+        "prefix": "youtube",
+        "body": [
+            "@[youtube](${1:Youtube ID})"
+        ],
+        "description": "Zenn Youtube Embed"
+    }
+}

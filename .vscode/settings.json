@@ -1,0 +1,21 @@
+{
+  // --- Paste Image Configuration for Zenn ---
+  // 画像を 'images/記事スラッグ/' ディレクトリに保存
+  "pasteImage.path": "${projectRoot}/images/${currentFileBasenameWithoutExt}",
+  // 挿入されるパスの先頭に '/images/記事スラッグ/' を付ける
+  "pasteImage.prefix": "/images/${currentFileBasenameWithoutExt}/",
+  // ファイル名に記事のファイル名を付与 (例: article-slug-20240127.png)
+  "pasteImage.namePrefix": "${currentFileBasenameWithoutExt}-",
+  // 貼り付け時にファイル名を確認・編集する入力ボックスを表示
+  "pasteImage.showFilePathConfirmInputBox": true,
+  // パス区切り文字を強制的に '/' にする (Windows対策)
+
+  // --- Editor Settings for Writing ---
+  // 右端で折り返す
+  "editor.wordWrap": "on",
+  // 日本語入力時の予測変換を見やすく
+  "editor.suggest.snippetsPreventQuickSuggestions": false,
+  
+  // --- Zenn Editor ---
+  // プレビューのホットキー設定などはVSCode標準のキーバインド設定で行います
+}
