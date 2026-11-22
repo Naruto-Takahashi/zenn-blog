@@ -3,7 +3,7 @@ title: "勾配なしでLLMが自分の重みを直し+6.6pt改善、その仕組
 emoji: "🧬"
 type: "tech"
 topics: ["ai", "llm", "machinelearning", "arxiv", "security"]
-published: false
+published: true
 ---
 
 「モデルの弱点を直すには、重い GPU で勾配を回すか、推論時に高いトークン代を払い続けるしかない」――そう思い込んでいませんか？
