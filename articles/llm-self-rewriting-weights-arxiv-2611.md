@@ -1,5 +1,5 @@
 ---
-title: "勾配なしでLLMが自分の重みを直し+6.6pt改善、その仕組みと潜む運用リスク"
+title: "LLM自己改変「Self-Rewriting」で+6.6pt改善｜仕組みと運用リスク"
 emoji: "🧬"
 type: "tech"
 topics: ["ai", "llm", "machinelearning", "arxiv", "security"]
