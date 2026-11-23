@@ -1,5 +1,5 @@
 ---
-title: "ガードレールで詰まるAIエージェントを救う設計。形式検証Soteriaの要点"
+title: "AIエージェントのガードレールが詰まる理由。Soteriaに学ぶ3つの対策"
 emoji: "🛡️"
 type: "tech"
 topics: ["ai", "llm", "security", "agents", "claudecode"]
