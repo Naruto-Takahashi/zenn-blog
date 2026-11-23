@@ -1,5 +1,5 @@
 ---
-title: "勾配なしで自己改善するLLM「Self-Rewriting」とエージェント設計の注意点"
+title: "LLMが重みを書き換える。Self-Rewritingと自己更新エージェントの守り方"
 emoji: "🧬"
 type: "tech"
 topics: ["ai", "llm", "machinelearning", "arxiv", "security"]
