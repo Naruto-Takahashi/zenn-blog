@@ -3,7 +3,7 @@ title: "コーディングエージェントの鍵流出は禁止ルールで防
 emoji: "🛡️"
 type: "tech"
 topics: ["ai", "security", "llm", "claudecode", "architecture"]
-published: false
+published: true
 ---
 
 「`.env` ファイルは読まないで」とルールに書いたから安心、と思っていませんか。
