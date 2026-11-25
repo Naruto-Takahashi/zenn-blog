@@ -3,7 +3,7 @@ title: "Echo Show 5を脱獄してVOICEVOX×LLMの自作AI秘書にした全手�
 emoji: "🎙️"
 type: "tech"
 topics: ["ai", "voicevox", "whisper", "android", "python"]
-published: false
+published: true
 ---
 
 机の隅で眠っていた Echo Show 5（第1世代）を、ローカル音声認識（Whisper）＋ LLM ＋ VOICEVOX ＋ 立ち絵キャラクターが動く **専用の AI 音声アシスタント端末** に作り変えました。
