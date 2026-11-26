@@ -7,17 +7,17 @@ published: false
 ---
 
 ```text
-user: 明日の朝くじに起こして。
-assistant: 抽選時刻が不明なため、何時にアラームを設定するか教えてください。
+発話       : 明日の朝9時に起こして
+mlx-whisper: 明日の朝くじに起こして。
 ```
 
-私が言ったのは「**明日の朝9時に起こして**」だった。
+最近の LLM は賢いので、前後の文脈から「くじ＝9時」と気を利かせて補完してくれる場面も少なくありません。ただ、文字起こしが毎回こうして別の語へ揺れると、たまに意図しない解釈へ転んだり、何より M1 Mac mini 8GB のローカル推論だけで毎回 **約 1.5 秒** 待たされたりします。
 
 前回の記事で Echo Show 5（第1世代）をカスタム ROM 化し、自宅の Mac mini で動く自作音声アシスタント [VoxMate](https://github.com/Naruto-Takahashi/voxmate) を作りました。
 
 https://zenn.dev/nalt/articles/echo-show-5-voxmate-assistant
 
-ところが実際に使い始めると、バックエンドの LLM がどれだけ賢くても、手前の文字起こし（ローカルの `mlx-whisper`）が開発用語や時刻を別の言葉に書き換えてしまい、**LLM に意図と違う文字列が渡る** 場面が頻発しました。しかも M1 Mac mini 8GB では文字起こしだけで毎回 **約 1.5 秒** 待たされます。
+ところが実際に使い始めると、手前の文字起こし（ローカルの `mlx-whisper`）が開発用語や時刻を別の言葉に書き換えることがありました。
 
 そこで **AmiVoice API** の同期 HTTP インタフェースと単語登録（`profileWords`）を VoxMate に組み込み、ローカル Whisper と 4 条件・16 文で比較しました。この記事を読むと、**Python から AmiVoice API の `profileWords` を正しく渡す実装** と、**実測データに基づくローカル STT とクラウド STT の使い分け** が分かります。
 
@@ -102,7 +102,7 @@ Whisper は `initial_prompt` に `Claude` を含めても `Grode` に寄せた�
 | `AmiVoice`（素） | `GitHubのイシューを見せて` |
 | `AmiVoice`（`profileWords` 有） | `GitHubのIssueを見せて` |
 
-`GitHubの一種` が LLM に渡ると、検索クエリとして成立しなくなります。
+音声合成では `GitHubの一種` に、筆者の肉声で試すと何度話しかけても `GitHubの一周` に変換されました。LLM が文脈で補える場合もありますが、そのまま検索クエリへ渡す処理では確実にコケます。
 
 ### ケース 03：プルリク・リバート
 
