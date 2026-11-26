@@ -44,7 +44,7 @@ adb push lineage-18.1-*-UNOFFICIAL-checkers.zip /sdcard/
 
 4. **USB デバッグ有効化**: 起動後、「設定」→「端末情報」→「ビルド番号」を 7 回タップして開発者向けオプションを開き、USB デバッグを ON にします。最後に Chrome を導入すれば端末側の準備は完了です。
 
-https://xdaforums.com/t/unlock-root-twrp-unbrick-echo-show-5-checkers.4718281/
+https://xdaforums.com/t/unlock-root-twrp-unbrick-amazon-echo-show-5-1st-gen-2019-checkers.4762900/
 
 ## 手順2：母艦（Mac mini / PC）に VoxMate をセットアップする
 
@@ -143,7 +143,7 @@ uv run python tools/extract_portraits.py --psd-dir custom_psd --out-dir static/p
 :::message
 **立ち絵素材・音声合成クレジットとライセンス**
 素晴らしい立ち絵素材と音声合成エンジンを公開してくださっているクリエイター・開発者の皆様に感謝します。
-- **立ち絵素材**: 坂本アヒル氏 配布素材（[利用規約・ガイドライン](https://zan-shin.net/guideline/) / [東北ずん子・ずんだもん公式ガイドライン](https://zunko.jp/guideline.html)）。本リポジトリおよび記事内では PSD・PNG 素材の再配布は行っていません。
+- **立ち絵素材**: 坂本アヒル氏 配布素材（[立ち絵素材配布ページ](https://tachie.net/u/3) / [東北ずん子・ずんだもん公式ガイドライン](https://zunko.jp/guideline.html)）。本リポジトリおよび記事内では PSD・PNG 素材の再配布は行っていません。
 - **音声合成**: [VOICEVOX](https://voicevox.hiroshiba.jp/)
 :::
 
@@ -151,6 +151,6 @@ uv run python tools/extract_portraits.py --psd-dir custom_psd --out-dir static/p
 
 https://github.com/Naruto-Takahashi/voxmate
 
-https://xdaforums.com/t/unlock-root-twrp-unbrick-echo-show-5-checkers.4718281/
+https://xdaforums.com/t/unlock-root-twrp-unbrick-amazon-echo-show-5-1st-gen-2019-checkers.4762900/
 
 https://antigravity.google/terms
