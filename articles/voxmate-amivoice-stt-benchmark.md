@@ -6,32 +6,24 @@ topics: ["amivoice", "whisper", "voicevox", "python", "ai"]
 published: false
 ---
 
-前回の記事で、Echo Show 5（第1世代）をカスタム ROM 化して自作 AI 音声アシスタント（[VoxMate](https://github.com/Naruto-Takahashi/voxmate)）に改造しました。
+```text
+user: 明日の朝くじに起こして。
+assistant: 抽選時刻が不明なため、何時にアラームを設定するか教えてください。
+```
+
+私が言ったのは「**明日の朝9時に起こして**」だった。
+
+前回の記事で Echo Show 5（第1世代）をカスタム ROM 化し、自宅の Mac mini で動く自作音声アシスタント [VoxMate](https://github.com/Naruto-Takahashi/voxmate) を作りました。
 
 https://zenn.dev/nalt/articles/echo-show-5-voxmate-assistant
 
-ただ、実際にデスクで毎日話しかけていると、ローカルの Whisper（M1 Mac mini 上の `mlx-whisper` / `large-v3-turbo-q4`）が**固有名詞をことごとく別物に書き換えてくる**という弱点が見えてきました。
+ところが実際に使い始めると、バックエンドの LLM がどれだけ賢くても、手前の文字起こし（ローカルの `mlx-whisper`）が開発用語や時刻を別の言葉に書き換えてしまい、**LLM に意図と違う文字列が渡る** 場面が頻発しました。しかも M1 Mac mini 8GB では文字起こしだけで毎回 **約 1.5 秒** 待たされます。
 
-- 「LineageOS のブラウザを開いて」→「**リニッチOS**のブラウザを開いて」（もう何の OS なのか分からない）
-- 「VoxMate のモデルを変えて」→「**ボックスメリット**のモデルを変えて」（急に健康食品の定期便みたいな名前になる）
-- 「東北イタコにキャラを切り替えて」→「**東北板子**にキャラを切り替えて」（実在しそうな一般人の苗字に改名）
-
-しかも M1 Mac mini 8GB では、文字起こしだけで毎回 **約 1.5 秒** かかります。
-
-そこで今回は、**AmiVoice API** の同期 HTTP インタフェースと単語登録機能（`profileWords`）を VoxMate に組み込み、**ローカル Whisper と 4 条件でガチ比較** してみました。この記事を読むと、**Python から AmiVoice API の `profileWords` を正しく叩く実装** と、**固有名詞の誤認識と応答速度を同時に改善する勘所** が分かります。
-
-:::message
-**検証の結論（30秒で把握）**
-- **速度**：M1 Mac mini の `mlx-whisper`（中央値 `1,515 ms`）に対し、AmiVoice API は **約 2 倍高速**（`621〜742 ms`）だった。
-- **精度**：素のままだと AmiVoice も「WhiteCUL → **ホワイトカラー**」「LineageOS → **離日OS**」とボケるが、`profileWords` を正しく渡した瞬間に **固有名詞正解率 90.9%**（全体 CER 2.88%）で全 4 条件のトップに立った。
-- **最大の落とし穴**：`profileWords` は `表記 読み|表記 読み` を **URL エンコード** しないと静かに無視される。
-:::
+そこで **AmiVoice API** の同期 HTTP インタフェースと単語登録（`profileWords`）を VoxMate に組み込み、ローカル Whisper と 4 条件・16 文で比較しました。この記事を読むと、**Python から AmiVoice API の `profileWords` を正しく渡す実装** と、**実測データに基づくローカル STT とクラウド STT の使い分け** が分かります。
 
 ## VoxMate に `VOXMATE_STT=amivoice` を組み込む
 
-VoxMate はすでに `ffmpeg` で入力音声を 16kHz モノラル WAV に正規化しているため、AmiVoice API の同期 HTTP エンドポイント（`https://acp-api.amivoice.com/v1/nolog/recognize`）を差し込むだけで完結します。
-
-実際のクライアント実装は [stt_amivoice.py](https://github.com/Naruto-Takahashi/voxmate/blob/main/stt_amivoice.py) に切り出しました。
+VoxMate は入力音声を `ffmpeg` で 16kHz モノラル WAV に正規化してから認識器へ渡しているため、同期 HTTP エンドポイント（`https://acp-api.amivoice.com/v1/nolog/recognize`）へのクライアントを 1 ファイル足すだけで切り替えられます。
 
 ```python:stt_amivoice.py
 from pathlib import Path
@@ -44,7 +36,7 @@ def build_amivoice_d_param(engine: str = "-a-general", profile_words: str = "") 
     parts = [f"grammarFileNames={engine.strip() or '-a-general'}"]
     words = profile_words.strip()
     if words:
-        # スペースや | を含むため URL エンコードが必須
+        # d パラメータは半角スペース区切りのため、profileWords 全体は URL エンコードする
         parts.append(f"profileWords={quote(words, safe='')}")
     return " ".join(parts)
 
@@ -66,65 +58,120 @@ def transcribe_wav_amivoice(wav_path: Path, app_key: str, profile_words: str = "
         return str(payload.get("text") or "").strip()
 ```
 
-`.env` に API キーと単語リストを書くだけで切り替えられます。
+`.env` に API キーと登録したい語彙を並べるだけで有効化できます。
 
 ```bash:.env
 VOXMATE_STT=amivoice
 AMIVOICE_APP_KEY=your_api_key_here
 AMIVOICE_ENGINE=-a-general
-AMIVOICE_PROFILE_WORDS=ずんだもん ずんだもん|四国めたん しこくめたん|SwitchBot すいっちぼっと|VoxMate ぼっくすめいと
+AMIVOICE_PROFILE_WORDS=プルリク ぷるりく|Claude くろーど|Nix にっくす|GitHub ぎっとはぶ|Issue いしゅー
 ```
 
-### 自分が真っ先にハマった 2 つの罠
+### 実装時に踏んだ 2 つの罠
 
-実装してベンチマークを回す過程で、初見殺しポイントを 2 つ踏みました。
+1. **`profileWords` の書式違いはエラーにならず無視される**
+   最初は `表記|読み` を半角スペースで並べてしまい、エラーも出ないまま素の認識結果が返り続けました。公式仕様は「**表記（半角スペース）ひらがな読み**」を `|` で繋ぎ、さらに `d=` へ渡す前に URL エンコードする形式です。
+2. **アカウント登録直後の認証エラー**
+   ACP マイページでクーポンを適用し、カード登録を終えた直後に叩くと `received illegal service authorization` になりました。マイページの注意書きにある「使用可能になるまで 10 分程度」を待ってから再試行すると通りました。
 
-1. **`profileWords` の書式ミスはエラーにならず静かに無視される**
-   最初、うっかり `ずんだもん|ズンダモン SwitchBot|スイッチボット` のように書いてしまったところ、エラーも出ず素の認識と全く同じ結果になりました。公式仕様は **「表記（半角スペース）ひらがな読み」を `|` で連結し、`d=` 内では URL エンコードする** のが正解です。
-2. **アカウント登録直後の `received illegal service authorization`**
-   ACP マイページでクーポンを適用し、クレジットカード登録を済ませた直後に叩いたら認証エラーになりました。ダッシュボードにも「登録完了時には使用可能になるまで 10 分程度かかります」と明記されており、少し待ってから再実行したら一発で通りました。
+## 空耳コレクション（実測ログから抜粋）
 
-## 4 条件 × 16 文 × 3 回反復のガチ比較実験
+開発の日常語・ツール名・コマンド・一般会話を含む 16 文を VOICEVOX の複数話者（男女 5 名）で生成し、各エンジンへ通した実測結果から、挙動の差が出たケースを影響度の低い順に並べます。
 
-「たまたま 1 文だけ上手くいった」では意味がないため、条件を揃えて実験しました。
+### ケース 01：Claude
 
-- **コーパス**（計 16 文）：固有名詞コマンド 10 文（ずんだもん / 四国めたん / 春日部つむぎ / 東北イタコ / WhiteCUL / SwitchBot / VoxMate / Tailscale / LineageOS）＋ 一般的な日常・予定・タイマー発話 6 文
-- **話者**：VOICEVOX の複数話者（男女 5 名）で音声を生成して 16kHz WAV 化
-- **比較条件**：
-  1. `mlx-whisper`（素：デフォルトの `initial_prompt`）
-  2. `mlx-whisper`（プロンプト有：`initial_prompt` に固有名詞リストを注入）
-  3. `AmiVoice API`（素：`-a-general`、`profileWords` なし）
-  4. `AmiVoice API`（`profileWords` 有：9 語を登録）
-- **計測**：初回ウォームアップ除外後、各条件 3 回ずつ反復して **CER**（文字誤り率）・**固有名詞正解率**・**レイテンシ中央値** を算出
+> 発話：「Claudeに聞いてみて」
+
+| 条件 | 認識結果（そのまま LLM へ渡る文字列） |
+| :--- | :--- |
+| `mlx-whisper`（素） | `グロードに聞いてみて。` |
+| `mlx-whisper`（プロンプト有） | `Grodeに聞いてみて。` |
+| `AmiVoice`（素） | `Claudeに聞いてみて` |
+| `AmiVoice`（`profileWords` 有） | `Claudeに聞いてみて` |
+
+Whisper は `initial_prompt` に `Claude` を含めても `Grode` に寄せたのに対し、AmiVoice は素の `-a-general` の時点で正しく `Claude` を返しました。
+
+### ケース 02：Issue
+
+> 発話：「GitHubのIssueを見せて」
+
+| 条件 | 認識結果（そのまま LLM へ渡る文字列） |
+| :--- | :--- |
+| `mlx-whisper`（素） | `GitHubの一種を見せて、` |
+| `mlx-whisper`（プロンプト有） | `GitHubのIssueを見せて` |
+| `AmiVoice`（素） | `GitHubのイシューを見せて` |
+| `AmiVoice`（`profileWords` 有） | `GitHubのIssueを見せて` |
+
+`GitHubの一種` が LLM に渡ると、検索クエリとして成立しなくなります。
+
+### ケース 03：プルリク・リバート
+
+> 発話：「プルリクをマージして」「直前のコミットをリバートして」
+
+| 条件 | プルリク（発話：プルリクをマージして） | リバート（発話：直前のコミットをリバートして） |
+| :--- | :--- | :--- |
+| `mlx-whisper`（素） | `ブルリクをマージして。` | `直前のコミットをリバートして、` |
+| `AmiVoice`（素） | `ぷるリップをマージして、` | `直前のコミットをリバーとして、` |
+| `AmiVoice`（`profileWords` 有） | `プルリクをマージして` | `直前のコミットをリバートして、` |
+
+`ぷるリップ` でも `リバーとして` でも、辞書にない語が近い音の日本語へ引き寄せられています。
+
+### ケース 04：朝の目覚まし（一般会話のつもりだった文）
+
+> 発話：「明日の朝9時に起こして」
+
+| 条件 | 認識結果（そのまま LLM へ渡る文字列） |
+| :--- | :--- |
+| `mlx-whisper`（素） | `明日の朝くじに起こして。` |
+| `mlx-whisper`（プロンプト有） | `明日の朝くじに起こして。` |
+| `AmiVoice`（素） | `明日の朝9時に起こして` |
+| `AmiVoice`（`profileWords` 有） | `明日の朝9時に起こして` |
+
+固有名詞の検証用に用意した文ではなく、基準線として入れた普通の日本語で差が出ました。アラーム登録に「9時」ではなく「くじ」が渡ると、朝起きられなくなります。
+
+### ケース 05：Slack に返信
+
+> 発話：「Slackに返信しといて」
+
+| 条件 | 認識結果（そのまま LLM へ渡る文字列） |
+| :--- | :--- |
+| `mlx-whisper`（素） | `スラックに変身しといて。` |
+| `mlx-whisper`（プロンプト有） | `スラックに変身しといて` |
+| `AmiVoice`（素） | `Slackに返信しといて` |
+| `AmiVoice`（`profileWords` 有） | `Slackに変身しといて` |
+
+興味深いことに、`AmiVoice`（素）は文脈から `Slackに返信しといて` と正しく変換できましたが、他の 3 条件では `変身` に引っ張られました。
+
+### 全条件で正解だった文（対照）
+
+もちろん、すべてがボケるわけではありません。「本番にデプロイして」「新しいブランチを切って」「古いテーブルをドロップして」「CIが落ちてる」「今日の天気は？」の 5 文は、4 条件すべてで意味が通る正しい文字列を返しました。
+
+## 誰も悪くない。ただ辞書がなかっただけ
+
+エンジン側は音響特徴からもっともらしい音素列を出しただけで、辞書に載っていない単語を聞き間違えるのは自然な挙動です。`profileWords` はその場でドメイン辞書を 1 行差し込めるため、モデルを再学習することなく誤認識の大部分を潰せます。
+
+## 4 条件 × 16 文 × 3 回反復の定量比較
+
+全 16 文を各条件 3 回ずつ実行（初回ウォームアップ除外）し、句読点・空白を除いた文字誤り率（CER）、対象キーワード正解率、推論レイテンシ中央値をまとめました。
 
 ![VoxMate 音声認識 4条件比較（精度 × 速度）](/images/voxmate-amivoice-stt-benchmark/stt-benchmark.png)
 
-| 比較条件 | 全体 CER | 固有名詞文 CER | 一般文 CER | 固有名詞 正解率 | レイテンシ中央値 |
+| 比較条件 | 全体 CER | 対象文 CER | 一般文 CER | キーワード正解率 | レイテンシ中央値 |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| `mlx-whisper`（素） | 21.78% | 34.86% | **0.00%** | 0.0% (0/11) | 1,514.9 ms |
-| `mlx-whisper`（プロンプト有） | 3.57% | 5.71% | **0.00%** | 81.8% (9/11) | 1,524.0 ms |
-| `AmiVoice`（素） | 16.56% | 25.78% | 1.19% | 36.4% (4/11) | **620.8 ms** |
-| `AmiVoice`（`profileWords` 有） | **2.88%** | **3.89%** | 1.19% | **90.9% (10/11)** | 742.3 ms |
+| `mlx-whisper`（素） | 19.59% | 21.09% | 9.09% | 58.3% (14/24) | 1,490.7 ms |
+| `mlx-whisper`（プロンプト有） | 7.49% | 7.26% | 9.09% | **87.5%** (21/24) | 1,503.9 ms |
+| `AmiVoice`（素） | 14.37% | 16.42% | **0.00%** | 62.5% (15/24) | **952.3 ms** |
+| `AmiVoice`（`profileWords` 有） | **3.97%** | **4.54%** | **0.00%** | **87.5%** (21/24) | 1,023.5 ms |
 
-## 空耳コレクションから見えた面白さと限界
-
-実際の出力ログを並べてみると、各エンジンの癖がよく分かります。
-
-- **素の AmiVoice が生み出した名作誤認識**:
-  - 「**WhiteCUL**の声で返事をして」→「**ホワイトカラーの声で返事をして**」（急にサラリーマン）
-  - 「**LineageOS**のブラウザを開いて」→「**離日OSのブラウザを開いて**」（日本から出国する OS 爆誕）
-- **`profileWords` を入れた瞬間の逆転劇**:
-  - 上記の「ホワイトカラー」も「ボックスメリット（VoxMate）」も「すんだもん」も、`profileWords` を正しく渡した瞬間に **「WhiteCUL」「VoxMate」「ずんだもん」** へ一発で矯正されました。
-  - ローカル Whisper にプロンプトを盛った条件（81.8%）すら上回り、**全体 CER 2.88%・正解率 90.9%** を出しつつ、応答時間は **742.3 ms（Whisper の約半分）** に収まっています。
-- **唯一残った 1 問と今後の限界**:
-  - 唯一「LineageOS」だけは、`profileWords` に `りにえーじおーえす` と登録したものの VOICEVOX の発音が「りにーじ」寄りだったため `離日OS` のまま残りました。読みの揺れに合わせた複数パターン登録が効きそうです。
-  - また本実験は VOICEVOX 合成音声による検証であり、実環境の生活雑音・残響下やネットワーク不調時のレイテンシ変動は別途考慮が必要です。
+- **精度面**：`AmiVoice`（`profileWords` 有）が全体 CER **3.97%**、一般文 CER **0.00%** で最も安定しました。
+- **速度面**：M1 Mac mini のローカル `mlx-whisper`（約 1.5 秒）に対し、AmiVoice API は通信込みで **約 0.95〜1.02 秒** と約 1.5 倍高速でした。
+- **限界と使い分け**：本計測は VOICEVOX 合成音声による検証であり、実環境の雑音・残響下やオフライン環境では挙動が変わります。また `git push` を `きっとプッシュ` と拾うような母音・子音の揺れは、読みを複数パターン登録する工夫が有効です。
 
 ## まとめ
 
-ローカル Whisper はオフラインで動く強みがある一方、M1 Mac mini クラスでは 1.5 秒前後の待ち時間が発生します。そこに AmiVoice API の同期 HTTP インタフェースと `profileWords` を組み合わせることで、**固有名詞の誤認識を抑えつつ認識時間を半分近くに短縮** できました。
+ローカル Whisper は通信不要で無料という強みがある一方、固有名詞の誤変換や M1 環境での 1.5 秒前後の待ち時間がネックになります。AmiVoice API と `profileWords` を組み合わせることで、**文字誤り率を 19.59% から 3.97% まで下げつつ、応答テンポも短縮** できました。
 
-Echo Show 5 などの音声アシスタントを「毎日ストレスなく会話できるテンポ」に引き上げたい方は、ぜひ `VOXMATE_STT=amivoice` を試してみてください。
+Echo Show 5 などの音声アシスタントを普段使いのテンポに近づけたい場合は、`VOXMATE_STT=amivoice` での運用を試してみてください。
 
 https://github.com/Naruto-Takahashi/voxmate
 
