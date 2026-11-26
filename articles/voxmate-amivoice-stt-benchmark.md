@@ -6,21 +6,25 @@ topics: ["amivoice", "whisper", "voicevox", "python", "ai"]
 published: false
 ---
 
-自作の音声アシスタント（[VoxMate](https://github.com/Naruto-Takahashi/voxmate)）を動かしていると、ローカル Whisper が毎回なかなかパンチの効いた空耳を返してきます。
+前回の記事で、Echo Show 5（第1世代）をカスタム ROM 化して自作 AI 音声アシスタント（[VoxMate](https://github.com/Naruto-Takahashi/voxmate)）に改造しました。
 
-- 「ずんだもん」→「**すんだもん**」（誰？）
-- 「東北イタコ」→「**東北板子**」（急に実在しそう）
-- 「VoxMate」→「**ボックスメリット**」（通販の定期便か何か？）
+https://zenn.dev/nalt/articles/echo-show-5-voxmate-assistant
 
-しかも Apple Silicon（M1 Mac mini 8GB）上の `mlx-whisper`（`large-v3-turbo-q4`）でも、文字起こしだけで毎回 **約 1.5 秒** かかります。
+ただ、実際にデスクで毎日話しかけていると、ローカルの Whisper（M1 Mac mini 上の `mlx-whisper` / `large-v3-turbo-q4`）が**固有名詞をことごとく別物に書き換えてくる**という弱点が見えてきました。
+
+- 「LineageOS のブラウザを開いて」→「**リニッチOS**のブラウザを開いて」（もう何の OS なのか分からない）
+- 「VoxMate のモデルを変えて」→「**ボックスメリット**のモデルを変えて」（急に健康食品の定期便みたいな名前になる）
+- 「東北イタコにキャラを切り替えて」→「**東北板子**にキャラを切り替えて」（実在しそうな一般人の苗字に改名）
+
+しかも M1 Mac mini 8GB では、文字起こしだけで毎回 **約 1.5 秒** かかります。
 
 そこで今回は、**AmiVoice API** の同期 HTTP インタフェースと単語登録機能（`profileWords`）を VoxMate に組み込み、**ローカル Whisper と 4 条件でガチ比較** してみました。この記事を読むと、**Python から AmiVoice API の `profileWords` を正しく叩く実装** と、**固有名詞の誤認識と応答速度を同時に改善する勘所** が分かります。
 
 :::message
 **検証の結論（30秒で把握）**
-- **速度**: M1 Mac mini の `mlx-whisper`（中央値 `1,515 ms`）に対し、AmiVoice API は **約 2 倍高速（`621〜742 ms`）** だった。
-- **精度**: 素のままだと AmiVoice も「WhiteCUL → **ホワイトカラー**」「LineageOS → **離日OS**」とボケるが、`profileWords` を正しく渡した瞬間に **固有名詞正解率 90.9%（全体 CER 2.88%）** で全 4 条件のトップに立った。
-- **最大の落とし穴**: `profileWords` は `表記 読み|表記 読み` を **URL エンコード** しないと静かに無視される。
+- **速度**：M1 Mac mini の `mlx-whisper`（中央値 `1,515 ms`）に対し、AmiVoice API は **約 2 倍高速**（`621〜742 ms`）だった。
+- **精度**：素のままだと AmiVoice も「WhiteCUL → **ホワイトカラー**」「LineageOS → **離日OS**」とボケるが、`profileWords` を正しく渡した瞬間に **固有名詞正解率 90.9%**（全体 CER 2.88%）で全 4 条件のトップに立った。
+- **最大の落とし穴**：`profileWords` は `表記 読み|表記 読み` を **URL エンコード** しないと静かに無視される。
 :::
 
 ## VoxMate に `VOXMATE_STT=amivoice` を組み込む
