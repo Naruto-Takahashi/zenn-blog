@@ -44,6 +44,8 @@ adb push lineage-18.1-*-UNOFFICIAL-checkers.zip /sdcard/
 
 4. **USB デバッグ有効化**: 起動後、「設定」→「端末情報」→「ビルド番号」を 7 回タップして開発者向けオプションを開き、USB デバッグを ON にします。最後に Chrome を導入すれば端末側の準備は完了です。
 
+詳細なツールと実機報告は XDA Developers の公式スレッドを参照してください（スレッド冒頭の 1 ページ目には旧ビルド `NS65751/8848` で対策済みとの注記が残っていますが、後半の Page 20〜21 付近で `NS65751/8851` にてリバートされ再アンロック可能になっている件が報告されています）。
+
 https://xdaforums.com/t/unlock-root-twrp-unbrick-amazon-echo-show-5-1st-gen-2019-checkers.4762900/
 
 ## 手順2：母艦（Mac mini / PC）に VoxMate をセットアップする
