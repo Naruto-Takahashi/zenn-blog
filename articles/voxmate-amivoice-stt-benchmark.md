@@ -3,7 +3,7 @@ title: "AI秘書の誤認識をAmiVoice APIで撃退！Whisperとガチ比較"
 emoji: "🗣️"
 type: "tech"
 topics: ["amivoice", "whisper", "voicevox", "python", "ai"]
-published: false
+published: true
 ---
 
 ```text
