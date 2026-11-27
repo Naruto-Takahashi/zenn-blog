@@ -178,3 +178,4 @@ Echo Show 5 などの音声アシスタントを普段使いのテンポに近�
 https://github.com/Naruto-Takahashi/voxmate
 
 https://docs.amivoice.com/amivoice-api/manual/
+
