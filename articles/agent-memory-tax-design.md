@@ -1,5 +1,5 @@
 ---
-title: "AIの記憶は凝るほどRAGに負ける。Memory Taxを防ぐ2層設計"
+title: "エージェントの長期記憶は要約するほど素のRAGに負ける。生ログ併用の2層設計"
 emoji: "🧠"
 type: "tech"
 topics: ["ai", "llm", "rag", "agent", "memory"]
@@ -10,7 +10,7 @@ published: false
 
 Claude Code の `MEMORY.md` や自律エージェントのメモリ層を設計していると、一度はこの違和感にぶつかります。良かれと思って「記憶を整理・圧縮」しているのに、素朴な全文検索や単純な RAG より精度が落ちるケースが少なくありません。
 
-本記事を読むと、この現象の正体である **Memory Tax（記憶税）** がなぜ起きるのかを理解し、手元のエージェントや `MEMORY.md` 運用に **「蒸留メモリ＋生ログフォールバック」の2層検索** を取り入れて精度とコストを改善できるようになります。
+本記事を読むと、この現象の正体である **Memory Tax（記憶税）** がなぜ起きるのかを理解し、手元のエージェントや `MEMORY.md` 運用に **「要約メモリと生ログを両方検索する」2層検索** を取り入れて精度とコストを改善できるようになります。
 
 :::message
 **この記事の結論（tl;dr;）**
@@ -27,9 +27,9 @@ UIUC や清華大学などの研究チームが 2026 年 10 月に発表した�
 
 結果は意外なものでした。たとえば GPT-5.6 Luna（low）をバックボーンにした LongMemEval-s では、2 ラウンドの Naive RAG が **90.0%** の正答率を出したのに対し、多くの専用メモリシステムがそれを大きく下回りました。
 
-| 手法カテゴリ | 代表システム | LongMemEval-s 正答率（GPT-5.6 Luna） | RAG（2rd）との差 |
+| 手法カテゴリ | 代表システム | LongMemEval-s 正答率（GPT-5.6 Luna） | RAG（2ラウンド）との差 |
 | :--- | :--- | :--- | :--- |
-| 比較基準 | Naive RAG（2rd） | **90.0%** | — |
+| 比較基準 | Naive RAG（2ラウンド） | **90.0%** | — |
 | フラット型 | A-Mem / MemOS | 84.0% / 78.0% | -6.0% / -12.0% |
 | 階層型 | LightMem / OpenViking | 77.0% / 63.0% | -13.0% / -27.0% |
 | グラフ型 | HippoRAG2 / MAGMA | 81.0% / 76.0% | -9.0% / -14.0% |
@@ -42,7 +42,7 @@ UIUC や清華大学などの研究チームが 2026 年 10 月に発表した�
 
 なぜ記憶を整理すると精度が落ちるのでしょうか。論文では、生の履歴から記憶を作る過程で生じる「変化」を両刃の剣として捉えています。
 
-- **Memory Benefit**（記憶の恩恵）: 散らばった事実の統合やユーザーの好み・傾向の抽出によって、素の RAG では解けなかった質問に答えられるようになるプラス効果。
+- **Memory Benefit**（記憶の恩恵）: 散らばった事実の統合やユーザーの好み・傾向の抽出によって、素の RAG では解けなかった質問に答えられるようになるプラス効果。実際、PersonaMem-v2（Qwen3.5-4B）では MemoryOS が **37.0%**（Naive RAG 比 +0.9pt）、LightMem が **36.4%**（+0.2pt）と素の RAG を上回り、複数発話に散らばった家族の年齢平均の計算（PlugMem）や「3週間前」といった相対日時の特定（SimpleMem）でも専用メモリが優位に立つケースが報告されています。
 - **Memory Tax**（記憶税）: 記憶を作る過程で元の証拠が失われたり探しにくくなったりして、素の RAG なら解けたはずの質問を落とすマイナス効果。
 
 実際の開発現場に置き換えると、Memory Tax は次の 3 つの形で現れます。
@@ -61,7 +61,7 @@ UIUC や清華大学などの研究チームが 2026 年 10 月に発表した�
 
 ### 3. モデル変更への脆弱性（Robustness Loss）：バックボーン依存が増す
 
-長寿命のエージェントでは「記憶を書いたモデル」と「後から記憶を読んで回答するモデル」が世代交代で変わることがあります。論文の検証では、モデルを切り替えた際のスコア低下幅が、Naive RAG よりも専用メモリシステムの方が大きくなる傾向が示されました。モデル固有の要約のクセに依存するほど、システム全体が壊れやすくなります。
+長寿命のエージェントでは「記憶を書いたモデル」と「後から記憶を読んで回答するモデル」が世代交代で変わることがあります。論文のクロスバックボーン検証（Qwen3.5-4B / Qwen3.6-27B / GPT-5.6 Luna 間の組み合わせ）でも、多くの専用メモリシステムではモデルを切り替えた際のスコア変動幅が Naive RAG より大きくなる傾向が報告されています。モデル固有の要約のクセに依存するほど、システム全体が壊れやすくなります。
 
 ## 解決策：Memory Tax を半減させる「2層検索（+ src-aug）」の設計
 
@@ -77,7 +77,7 @@ UIUC や清華大学などの研究チームが 2026 年 10 月に発表した�
 2. **層 2**（生ログフォールバック）: 同じクエリで、未加工の会話履歴・実行ログ（Raw History）も並列でチャンク検索する。
 3. **統合リランク**（Joint Rerank）: 両方の候補を 1 つのプールにまとめ、リランカー（または LLM の文脈長予算内での優先順位付け）で上位 $k$ 件に絞り込んでから回答を生成する。
 
-たったこれだけの追加で、新しい記憶アーキテクチャを作り直すことなく、既存システムの Memory Tax を劇的に減らせます。論文の実験（Qwen3.6-27B）では、次のような改善が確認されています。
+たったこれだけの追加で、新しい記憶アーキテクチャを作り直すことなく、既存システムの Memory Tax を約半分まで抑えられます。論文の実験（Qwen3.6-27B）では、次のような改善が確認されています。
 
 | システム | 通常時の正答率（Tax） | `+ src-aug` 適用後の正答率（Tax） |
 | :--- | :--- | :--- |
@@ -87,7 +87,7 @@ UIUC や清華大学などの研究チームが 2026 年 10 月に発表した�
 
 ## Python で組む最小の 2 層検索（`+ src-aug`）実装
 
-手元のエージェントにこの 2 層検索を組み込む最小イメージを示します。既存のベクトルストアや `MEMORY.md` 検索を消す必要はなく、後ろに生ログ検索とスコア統合を足すだけです。
+手元のエージェントにこの 2 層検索を組み込む最小イメージを示します（以下は設計パターンを示す未検証の擬似コードであり、そのまま実行できるものではありません）。既存のベクトルストアや `MEMORY.md` 検索を消す必要はなく、後ろに生ログ検索とクロスエンコーダ等による統合リランクを足すだけです。
 
 ```python:two_tier_memory.py
 from dataclasses import dataclass
@@ -96,7 +96,7 @@ from dataclasses import dataclass
 class MemoryUnit:
     source: str  # "distilled" or "raw"
     text: str
-    score: float
+    score: float  # 各ストア固有のスコア（ストア間比較には使わずリランクに渡す）
 
 def retrieve_with_source_fallback(
     query: str,
@@ -109,14 +109,18 @@ def retrieve_with_source_fallback(
     distilled_hits = distilled_store.search(query, limit=top_k)
     raw_hits = raw_log_store.search(query, limit=top_k)
 
-    # 2. 両者を統合し、重複を除いてリランクする
-    candidates = [
-        MemoryUnit("distilled", h.text, h.score) for h in distilled_hits
-    ] + [
-        MemoryUnit("raw", h.text, h.score) for h in raw_hits
-    ]
+    # 2. 両者を統合し、テキストの重複を除いて候補プールを作る
+    seen: set[str] = set()
+    candidates: list[MemoryUnit] = []
+    for source, hits in (("distilled", distilled_hits), ("raw", raw_hits)):
+        for h in hits:
+            key = h.text.strip()
+            if key in seen:
+                continue
+            seen.add(key)
+            candidates.append(MemoryUnit(source, h.text, h.score))
 
-    # リランカーで「今のクエリに最も直接的な根拠」を上位に残す
+    # 3. 異なるストア間のスコアは比較不能なため、リランカーで「今最も直接的な根拠」を上位に残す
     reranked = reranker.rank(query=query, documents=candidates)
     return reranked[:top_k]
 ```
