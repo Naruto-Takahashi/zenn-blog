@@ -3,7 +3,7 @@ title: "エージェントの長期記憶は要約するほど素のRAGに負け
 emoji: "🧠"
 type: "tech"
 topics: ["ai", "llm", "rag", "agent", "memory"]
-published: false
+published: true
 ---
 
 「AIエージェントに長期記憶を持たせようと、会話の要約パイプラインやグラフ型メモリを作り込んだのに、なぜか細かい過去の事実を忘れる。しかもトークンコストだけ跳ね上がった」
